@@ -1,3 +1,5 @@
+//Travail sur ELF
+
 #include <stdio.h>      // Pour printf
 #include <fcntl.h>      // Pour open
 #include <unistd.h>     // Pour read, close
