@@ -1,0 +1,24 @@
+man malloc                               // doc
+nano mallo.c
+#include <stdlib.h>
+       #include <stdio.h>
+                                         //void *malloc(size_t size);
+                                         //void free(void *_Nullable p);
+                                         //void *calloc(size_t n, size_t size);
+                                         //void *realloc(void *_Nullable p, size_t size);
+                                         //void *reallocarray(void *_Nullable p, size_t n, size_t size);
+
+                                         //Feature Test Macro Requirements for glibc (see feature_test_macros(7)):
+
+        int main (void) {
+        void *data=malloc(16);
+        printf("%p\n", data);
+        printf("%p\n", &data);
+        }
+gcc malloc.c -o malloc              
+./malloc                                 //execute
+0x63adf2c462a0
+0x7ffcd72d66d8
+
+0x7ffcd72d66d8 - 0x63adf2c462a0 = 31125165114424            // en octet
+31125165114424 = 37277,441362616002                         // Giga octet 
