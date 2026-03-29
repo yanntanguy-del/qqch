@@ -1,0 +1,38 @@
+#include <stdio.h>      // Fonctions d'entrée/sortie : printf, fprintf, perror, FILE
+#include <stdlib.h>     // Allocation mémoire : malloc, free
+#include <stdint.h>     // Types entiers précis : uint8_t
+#include <string.h>     // Fonctions sur les chaînes : strcmp, strncpy, strrchr, snprintf
+#include <math.h>       // Fonction sqrt
+#include <png.h>        // Bibliothèque libpng
+
+#define MIN_WIDTH 64    // Largeur minimale de l'image
+#define MAX_WIDTH 1024  // Largeur maximale de l'image
+
+// Affiche le message d'aide du programme.
+static void print_help(const char *progname) {
+    fprintf(stderr, "Usage: %s <input_file> [output.png]\n", progname);
+    fprintf(stderr, "Convertit un fichier binaire en image PNG.\n");
+    fprintf(stderr, "Options:\n");
+    fprintf(stderr, "  -h, --help    Affiche cette aide.\n");
+}
+// Lit tout le fichier en mémoire et renvoie un buffer alloué dynamiquement.
+
+static uint8_t *read_file(const char *path, size_t *out_size) {
+    FILE *f = fopen(path, "rb");                   // Ouvre le fichier en lecture binaire
+    if (!f) {                                      // Si l'ouverture échoue
+        perror("fopen");                           // Affiche la raison de l'erreur
+        return NULL;                               // Signale l'échec
+    }
+
+    if (fseek(f, 0, SEEK_END) != 0) {              // Va à la fin pour connaître la taille
+        perror("fseek");
+        fclose(f);
+        return NULL;
+    }
+
+    long len = ftell(f);                           // Récupère la taille du fichier
+    if (len < 0) {                                 // Si ftell échoue
+        perror("ftell");
+        fclose(f);
+        return NULL;
+    }
