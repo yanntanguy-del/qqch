@@ -122,3 +122,19 @@ static int write_png_rgb(const char *path,
         perror("fopen");
         return 0;
     }
+
+    png_structp png_ptr = png_create_write_struct(  // Crée la structure principale libpng
+        PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    if (!png_ptr) {                                // Si la création échoue
+        fprintf(stderr, "png_create_write_struct failed\n");
+        fclose(fp);
+        return 0;
+    }
+
+    png_infop info_ptr = png_create_info_struct(png_ptr); // Crée la structure d'information PNG
+    if (!info_ptr) {                               // Si la création échoue
+        fprintf(stderr, "png_create_info_struct failed\n");
+        png_destroy_write_struct(&png_ptr, NULL);  // Nettoie la structure principale
+        fclose(fp);
+        return 0;
+    }
