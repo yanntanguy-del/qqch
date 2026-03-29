@@ -15,8 +15,8 @@ static void print_help(const char *progname) {
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "  -h, --help    Affiche cette aide.\n");
 }
-// Lit tout le fichier en mémoire et renvoie un buffer alloué dynamiquement.
 
+// Lit tout le fichier en mémoire et renvoie un buffer alloué dynamiquement.
 static uint8_t *read_file(const char *path, size_t *out_size) {
     FILE *f = fopen(path, "rb");                   // Ouvre le fichier en lecture binaire
     if (!f) {                                      // Si l'ouverture échoue
@@ -138,3 +138,155 @@ static int write_png_rgb(const char *path,
         fclose(fp);
         return 0;
     }
+
+    if (setjmp(png_jmpbuf(png_ptr))) {             // Permet de sortir proprement si libpng signale une erreur
+        fprintf(stderr, "libpng error\n");
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        fclose(fp);
+        return 0;
+    }
+
+    png_init_io(png_ptr, fp);                      // Lie libpng au fichier de sortie
+
+    size_t nb_pixels = (data_size + 2) / 3;        // Calcule le nombre de pixels nécessaires
+    size_t height = (nb_pixels + (size_t)width - 1) / (size_t)width; // Calcule la hauteur arrondie au supérieur
+
+    if (height == 0) {                             // Garantit au moins une ligne
+        height = 1;
+    }
+
+    png_set_IHDR(                                  // Décrit les propriétés de l'image PNG
+        png_ptr,
+        info_ptr,
+        (png_uint_32)width,
+        (png_uint_32)height,
+        8,
+        PNG_COLOR_TYPE_RGB,
+        PNG_INTERLACE_NONE,
+        PNG_COMPRESSION_TYPE_DEFAULT,
+        PNG_FILTER_TYPE_DEFAULT);
+
+    png_write_info(png_ptr, info_ptr);             // Écrit l'en-tête PNG
+
+    png_bytep *rows = malloc(height * sizeof(png_bytep)); // Tableau de pointeurs vers les lignes
+    if (!rows) {                                   // Si l'allocation échoue
+        fprintf(stderr, "malloc rows failed\n");
+        png_destroy_write_struct(&png_ptr, &info_ptr);
+        fclose(fp);
+        return 0;
+    }
+
+    for (size_t y = 0; y < height; y++) {          // Alloue chaque ligne de pixels
+        rows[y] = malloc((size_t)width * 3);
+        if (!rows[y]) {                             // Si une ligne échoue
+            fprintf(stderr, "malloc row failed\n");
+            for (size_t j = 0; j < y; j++) {
+                free(rows[j]);                     // Libère les lignes déjà allouées
+            }
+            free(rows);                             // Libère le tableau de pointeurs
+            png_destroy_write_struct(&png_ptr, &info_ptr);
+            fclose(fp);
+            return 0;
+        }
+    }
+
+    for (size_t y = 0; y < height; y++) {          // Remplit l'image ligne par ligne
+        for (int x = 0; x < width; x++) {          // Remplit chaque pixel de la ligne
+            size_t pixel_index = (size_t)y * (size_t)width + (size_t)x; // Index du pixel
+            size_t byte_index = pixel_index * 3;    // Index du premier octet correspondant
+
+            uint8_t r = 0;                         // Rouge par défaut
+            uint8_t g = 0;                         // Vert par défaut
+            uint8_t b = 0;                         // Bleu par défaut
+
+            if (byte_index < data_size) {          // Si l'octet existe dans le fichier
+                r = data[byte_index];             // Le premier octet devient le rouge
+            }
+
+            if (byte_index + 1 < data_size) {      // Si le deuxième octet existe
+                g = data[byte_index + 1];         // Le deuxième octet devient le vert
+            }
+
+            if (byte_index + 2 < data_size) {      // Si le troisième octet existe
+                b = data[byte_index + 2];         // Le troisième octet devient le bleu
+            }
+
+            if (elf_hint && byte_index < 96) {     // Si c'est un ELF et qu'on est dans son en-tête
+                r = (uint8_t)(16 + byte_index * 2); // Couleur spéciale pour rendre l'en-tête visible
+                g = (uint8_t)(128 + (byte_index % 64));
+                b = 255;
+            }
+
+            rows[y][x * 3 + 0] = r;                // Écrit le rouge dans la ligne
+            rows[y][x * 3 + 1] = g;                // Écrit le vert dans la ligne
+            rows[y][x * 3 + 2] = b;                // Écrit le bleu dans la ligne
+        }
+    }
+
+    png_write_image(png_ptr, rows);                // Écrit les pixels dans le fichier PNG
+    png_write_end(png_ptr, NULL);                  // Termine proprement le PNG
+
+    for (size_t y = 0; y < height; y++) {          // Libère chaque ligne allouée
+        free(rows[y]);
+    }
+
+    free(rows);                                    // Libère le tableau de lignes
+    png_destroy_write_struct(&png_ptr, &info_ptr); // Nettoie les structures libpng
+    fclose(fp);                                    // Ferme le fichier de sortie
+    return 1;                                      // Indique que tout s'est bien passé
+}
+
+int main(int argc, char **argv) {
+    if (argc == 1) {                               // Si aucun argument n'est donné
+        print_help(argv[0]);                       // Affiche l'aide
+        return 1;                                  // Signale une mauvaise utilisation
+    }
+
+    for (int i = 1; i < argc; i++) {               // Parcourt tous les arguments
+        if (strcmp(argv[i], "-h") == 0 ||          // Si l'argument est -h
+            strcmp(argv[i], "--help") == 0) {      // Ou --help
+            print_help(argv[0]);                   // Affiche l'aide
+            return 0;                              // Sort proprement
+        }
+    }
+
+    if (argc < 2 || argc > 3) {                    // Vérifie le nombre d'arguments
+        print_help(argv[0]);                       // Affiche l'aide
+        return 1;                                  // Erreur d'utilisation
+    }
+
+    const char *input_path = argv[1];              // Chemin du fichier à convertir
+    char output_path[1024];                        // Buffer pour le nom du fichier de sortie
+    output_path[0] = '\0';                         // Initialise la chaîne vide
+
+    if (argc == 3) {                               // Si l'utilisateur a donné un nom de sortie
+        strncpy(output_path, argv[2], sizeof(output_path) - 1); // Copie le nom
+        output_path[sizeof(output_path) - 1] = '\0'; // Force la terminaison de chaîne
+    } else {                                       // Sinon, on fabrique automatiquement le nom
+        const char *base = strrchr(input_path, '/'); // Cherche le dernier slash
+        if (base) {                                // Si un slash est trouvé
+            base++;                                // On prend ce qu'il y a après
+        } else {                                   // Sinon
+            base = input_path;                     // Le nom entier est utilisé
+        }
+        snprintf(output_path, sizeof(output_path), "%s.png", base); // Ajoute .png
+    }
+
+    size_t data_size = 0;                          // Taille du fichier lu
+    uint8_t *data = read_file(input_path, &data_size); // Lit le fichier entier
+    if (!data) {                                   // Si la lecture échoue
+        return 1;                                  // On s'arrête
+    }
+
+    int elf = is_elf(data, data_size);             // Détecte si le fichier est un ELF
+    int width = choose_width(data_size);           // Calcule une largeur adaptée
+
+    if (!write_png_rgb(output_path, data, data_size, width, elf)) { // Écrit le PNG
+        free(data);                                // Libère la mémoire
+        return 1;                                  // Erreur
+    }
+
+    free(data);                                    // Libère le buffer du fichier
+    printf("Written `%s`.\n", output_path);        // Affiche le succès
+    return 0;                                      // Termine normalement
+}
