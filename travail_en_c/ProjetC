@@ -36,3 +36,37 @@ static uint8_t *read_file(const char *path, size_t *out_size) {
         fclose(f);
         return NULL;
     }
+
+    rewind(f);                                     // Revient au début du fichier
+
+    if (len == 0) {                                // Refuse les fichiers vides
+        fprintf(stderr, "Fichier vide\n");
+        fclose(f);
+        return NULL;
+    }
+
+    uint8_t *buf = malloc((size_t)len);            // Alloue un buffer de la bonne taille
+    if (!buf) {                                    // Si malloc échoue
+        fprintf(stderr, "malloc failed\n");
+        fclose(f);
+        return NULL;
+    }
+
+    size_t read = fread(buf, 1, (size_t)len, f);   // Lit tout le fichier dans le buffer
+    if (read != (size_t)len) {                     // Vérifie que toute la lecture a réussi
+        fprintf(stderr, "fread: expected %ld bytes, got %zu\n", len, read);
+        free(buf);
+        fclose(f);
+        return NULL;
+    }
+
+    fclose(f);                                     // Ferme le fichier après lecture
+    *out_size = (size_t)len;                       // Retourne la taille lue au code appelant
+    return buf;                                    // Renvoie le buffer contenant les octets
+}
+
+// Vérifie si le fichier commence par la signature ELF.
+static int is_elf(const uint8_t *data, size_t size) {
+    if (size < 4) {                                // Il faut au moins 4 octets pour la signature
+        return 0;
+    }
