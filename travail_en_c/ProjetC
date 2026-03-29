@@ -70,3 +70,55 @@ static int is_elf(const uint8_t *data, size_t size) {
     if (size < 4) {                                // Il faut au moins 4 octets pour la signature
         return 0;
     }
+
+    return data[0] == 0x7f &&                      // Premier octet ELF
+           data[1] == 'E' &&                       // Deuxième octet ELF
+           data[2] == 'L' &&                       // Troisième octet ELF
+           data[3] == 'F';                         // Quatrième octet ELF
+}
+
+// Calcule une largeur d'image raisonnable à partir de la taille du fichier.
+static int choose_width(size_t data_size) {
+    double pixels = (double)data_size / 3.0;       // 3 octets par pixel RGB
+    double root = sqrt(pixels);                    // Vise une forme proche d'un carré
+    int w = (int)root;                             // Conversion en entier
+
+    if (w < MIN_WIDTH) {                           // Empêche une image trop étroite
+        w = MIN_WIDTH;
+    }
+
+    if (w > MAX_WIDTH) {                           // Empêche une image trop large
+        w = MAX_WIDTH;
+    }
+
+    if (w % 16 != 0) {                             // Arrondit à un multiple de 16
+        int mod = w % 16;
+        if (mod < 8) {                             // Se rapproche du multiple inférieur
+            w -= mod;
+        } else {                                   // Sinon se rapproche du multiple supérieur
+            w += (16 - mod);
+        }
+    }
+
+    if (w < MIN_WIDTH) {                           // Sécurité finale après arrondi
+        w = MIN_WIDTH;
+    }
+
+    if (w > MAX_WIDTH) {                           // Sécurité finale après arrondi
+        w = MAX_WIDTH;
+    }
+
+    return w;                                      // Renvoie la largeur retenue
+}
+
+// Écrit le buffer binaire dans un PNG RGB.
+static int write_png_rgb(const char *path,
+                         const uint8_t *data,
+                         size_t data_size,
+                         int width,
+                         int elf_hint) {
+    FILE *fp = fopen(path, "wb");                  // Ouvre le fichier PNG de sortie
+    if (!fp) {                                     // Si l'ouverture échoue
+        perror("fopen");
+        return 0;
+    }
