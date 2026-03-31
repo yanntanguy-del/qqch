@@ -92,3 +92,24 @@ int main(void) {
     return 0;
 
 }
+
+//Compteur de mots
+#include <stdio.h>
+
+int main(void) {
+    int c, l = 0, m = 0, b = 0, w = 0;
+
+    while ((c = getchar()) != EOF) {
+        b++;
+        if (c == '\n') l++;
+        if (c == ' ' || c == '\n' || c == '\t')
+            w = 0;
+        else if (!w) {
+            m++;
+            w = 1;
+        }
+    }
+
+    printf("%d %d %d\n", l, m, b);
+    return 0;
+}
