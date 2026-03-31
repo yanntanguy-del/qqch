@@ -60,3 +60,14 @@ int is_anagram(const char *left, const char *right)
     }
     return 0;
 }
+
+//Copie de fichier
+#include <stdio.h>
+
+int main(void) {
+    int c;
+    while ((c = getchar()) != EOF) {
+        putchar(c);
+    }
+    return 0;
+}
