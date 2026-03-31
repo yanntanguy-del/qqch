@@ -113,3 +113,21 @@ int main(void) {
     printf("%d %d %d\n", l, m, b);
     return 0;
 }
+
+//my atoi
+int my_atoi(char *s)
+{
+    int n = 0;
+    int sign = 1;
+
+    if (*s == '-') {
+        sign = -1;
+        s++;
+    }
+
+    while (*s >= '0' && *s <= '9') {
+        n = n * 10 + (*s - '0');
+        s++;
+    }
+    return n * sign;
+}
