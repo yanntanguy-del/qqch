@@ -37,3 +37,26 @@ int main(void) {
     }
     printf("- Who's there?\n");
 }
+
+//Fix is_Anagram
+#include <stddef.h>
+
+int is_anagram(const char *left, const char *right)
+{
+    int count[256] = {0};
+    size_t i;
+
+    for (i = 0; left[i] && right[i]; i++) {
+        count[(unsigned char)left[i]]++;
+        count[(unsigned char)right[i]]--;
+    }
+
+    if (left[i] != right[i])
+        return 1;
+
+    for (i = 0; i < 256; i++) {
+        if (count[i] != 0)
+            return 1;
+    }
+    return 0;
+}
